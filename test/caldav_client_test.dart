@@ -53,7 +53,7 @@ void main() {
       await client.getObjects('/dav.php/calendars/juli/default/', depth: 1);
 
       var request = mockServer.takeRequest();
-      expect(request.method, 'REPORT');
+      expect(request.method, 'GET');
       expect(request.uri.path, '/dav.php/calendars/juli/default/');
       expect(request.headers['depth'], '1');
       expect(request.headers['authorization'], isNotNull);
@@ -75,7 +75,7 @@ void main() {
           depth: 1);
       
       var request = mockServer.takeRequest();
-      expect(request.method, 'REPORT');
+      expect(request.method, 'GET');
       expect(request.uri.path, '/dav.php/calendars/juli/default/');
       expect(request.headers['depth'], '1');
       expect(request.headers['authorization'], isNotNull);
@@ -92,7 +92,7 @@ void main() {
       await client.getChanges('/dav.php/calendars/juli/default/', depth: 1);
 
       var request = mockServer.takeRequest();
-      expect(request.method, 'REPORT');
+      expect(request.method, 'GET');
       expect(request.uri.path, '/dav.php/calendars/juli/default/');
       expect(request.headers['depth'], '1');
       expect(request.headers['authorization'], isNotNull);
@@ -129,7 +129,7 @@ void main() {
       await client.multiget('/dav.php/calendars/juli/default/', files);
 
       var request = mockServer.takeRequest();
-      expect(request.method, 'REPORT');
+      expect(request.method, 'GET');
       expect(request.uri.path, '/dav.php/calendars/juli/default/');
       expect(request.headers['depth'], isNull);
       expect(request.headers['authorization'], isNotNull);

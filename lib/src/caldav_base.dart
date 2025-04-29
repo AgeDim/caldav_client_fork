@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:caldav_client/src/cal_response.dart';
 import 'package:caldav_client/src/utils.dart';
+import 'package:http/http.dart' as http;
 
 class CalDavBase {
   final HttpClient client;
@@ -49,31 +50,51 @@ class CalDavBase {
   /// specified filter. The response of this report will contain all the WebDAV
   /// properties and calendar object resource data specified in the request.
   Future<CalResponse> report(String path, dynamic body,
-      {int? depth, Map<String, dynamic>? headers}) async {
+      {int? depth, Map<String, String>? headers}) async {
     var uri = _fullUri(path);
-    var request = await client.openUrl('REPORT', Uri.parse(uri));
+    if (uri.contains("calendar.mail.ru")) {
+      final defaultHeaders = <String, String>{
+        'Content-Type': 'application/xml; charset=utf-8',
+        'Accept': 'application/xml,text/xml',
+        'Accept-Charset': 'utf-8',
+        if (depth != null) 'Depth': depth.toString(),
+        ...?this.headers?.cast<String, String>(),
+        ...?headers,
+      };
 
-    // headers
-    request.headers.contentType =
-        ContentType('application', 'xml', charset: 'utf-8');
+      final response = await http.Request('GET', Uri.parse(uri))
+        ..headers.addAll(defaultHeaders)
+        ..body = body;
 
-    var temp = <String, dynamic>{
-      HttpHeaders.acceptHeader: 'application/xml,text/xml',
-      HttpHeaders.acceptCharsetHeader: 'utf-8',
-      if (depth != null) 'Depth': depth,
-      ...?headers,
-      ...?this.headers
-    };
+      final streamed = await response.send();
+      final fullResponse = await http.Response.fromStream(streamed);
 
-    temp.forEach((key, value) {
-      request.headers.add(key, value);
-    });
+      return CalResponse.fromHttpResponseHttp(fullResponse, uri.toString());
+    } else {
+      var request = await client.openUrl('REPORT', Uri.parse(uri));
 
-    request.write(body);
+      // headers
+      request.headers.contentType =
+          ContentType('application', 'xml', charset: 'utf-8');
 
-    var response = await request.close();
+      var temp = <String, dynamic>{
+        HttpHeaders.acceptHeader: 'application/xml,text/xml',
+        HttpHeaders.acceptCharsetHeader: 'utf-8',
+        if (depth != null) 'Depth': depth,
+        ...?headers,
+        ...?this.headers
+      };
 
-    return CalResponse.fromHttpResponse(response, uri);
+      temp.forEach((key, value) {
+        request.headers.add(key, value);
+      });
+
+      request.write(body);
+
+      var response = await request.close();
+
+      return CalResponse.fromHttpResponse(response, uri);
+    }
   }
 
   /// Fetch the contents for the object
