@@ -45,84 +45,9 @@ class CalResponse {
         document: document);
   }
 
-  static String splitCalendarDataResponses(String xmlString) {
-    final document = XmlDocument.parse(xmlString);
-    final responses = document.findAllElements('response', namespace: 'DAV:');
-    final buffer = StringBuffer();
-
-    buffer.writeln("<?xml version='1.0' encoding='utf-8'?>");
-    buffer.writeln('<D:multistatus xmlns:D="DAV:">');
-
-    for (var response in responses) {
-      final href =
-          response.getElement('href', namespace: 'DAV:')?.innerText ?? '';
-      final getetag = response
-          .findAllElements('getetag', namespace: 'DAV:')
-          .first
-          .innerText;
-
-      final calendarDataElement = response
-          .findAllElements('calendar-data',
-              namespace: 'urn:ietf:params:xml:ns:caldav')
-          .first;
-      final calendarDataRaw = calendarDataElement.innerText.trim();
-
-      final headerMatch = RegExp(r'BEGIN:VCALENDAR.*?VERSION:2.0', dotAll: true)
-          .firstMatch(calendarDataRaw);
-      final footerMatch =
-          RegExp(r'END:VCALENDAR', dotAll: true).firstMatch(calendarDataRaw);
-      final timezoneMatch =
-          RegExp(r'BEGIN:VTIMEZONE.*?END:VTIMEZONE', dotAll: true)
-              .firstMatch(calendarDataRaw);
-
-      final header =
-          headerMatch?.group(0)?.trim() ?? 'BEGIN:VCALENDAR\nVERSION:2.0';
-      final footer = footerMatch?.group(0)?.trim() ?? 'END:VCALENDAR';
-      final timezone = timezoneMatch?.group(0)?.trim() ?? '';
-
-      final vevents = RegExp(r'BEGIN:VEVENT.*?END:VEVENT', dotAll: true)
-          .allMatches(calendarDataRaw)
-          .map((e) => e.group(0)!.trim())
-          .toList();
-
-      for (var vevent in vevents) {
-        final uidMatch = RegExp(r'UID:(.+)').firstMatch(vevent);
-        final uid = uidMatch?.group(1)?.trim() ??
-            DateTime.now().millisecondsSinceEpoch.toString();
-
-        final eventHref =
-            href.endsWith('/') ? '$href$uid.ics' : '$href/$uid.ics';
-
-        final newCalendarData = [
-          header.trim(),
-          vevent.trim(),
-          if (timezone.isNotEmpty) timezone.trim(),
-          footer.trim()
-        ].join('\n');
-
-        buffer.writeln('''<D:response>
-  <href xmlns="DAV:">$eventHref</href>
-  <D:propstat>
-    <D:prop>
-      <D:getetag>$getetag</D:getetag>
-      <C:calendar-data xmlns:C="urn:ietf:params:xml:ns:caldav">${newCalendarData.trim()}</C:calendar-data>
-    </D:prop>
-    <status xmlns="DAV:">HTTP/1.1 200 OK</status>
-  </D:propstat>
-</D:response>''');
-      }
-    }
-
-    buffer.writeln('</D:multistatus>');
-    return buffer.toString();
-  }
-
   static CalResponse fromHttpResponseHttp(http.Response response, String url) {
-    var headers = <String, dynamic>{};
-
-    response.headers.forEach((name, value) {
-      headers[name] = value;
-    });
+    final headers = <String, dynamic>{};
+    response.headers.forEach((name, value) => headers[name] = value);
 
     final bodyRaw = utf8.decode(response.bodyBytes).trim();
 
@@ -132,15 +57,86 @@ class CalResponse {
         "<D:propstat><D:prop><D:getetag>1743684950814</D:getetag>"
         "<C:calendar-data xmlns:C=\"urn:ietf:params:xml:ns:caldav\">";
 
-    final suffix = "\n</C:calendar-data></D:prop>"
+    final suffix = "</C:calendar-data></D:prop>"
         "<status xmlns=\"DAV:\">HTTP/1.1 ${response.statusCode} OK</status>"
         "</D:propstat></D:response></D:multistatus>";
 
     final wrappedXml = "$prefix$bodyRaw$suffix";
     XmlDocument? document;
+
     try {
-      document = XmlDocument.parse(splitCalendarDataResponses(wrappedXml));
+      final parsed = XmlDocument.parse(wrappedXml);
+      final responses = parsed.findAllElements('response', namespace: 'DAV:');
+
+      final buffer = StringBuffer();
+      buffer.writeln("<?xml version='1.0' encoding='utf-8'?>");
+      buffer.writeln('<D:multistatus xmlns:D="DAV:">');
+
+      for (var response in responses) {
+        final href =
+            response.getElement('href', namespace: 'DAV:')?.innerText ?? '';
+        final getetag = response
+            .findAllElements('getetag', namespace: 'DAV:')
+            .first
+            .innerText;
+
+        final calendarDataElement = response
+            .findAllElements('calendar-data',
+                namespace: 'urn:ietf:params:xml:ns:caldav')
+            .first;
+        final calendarDataRaw = calendarDataElement.innerText.trim();
+
+        final headerMatch =
+            RegExp(r'BEGIN:VCALENDAR.*?VERSION:2.0', dotAll: true)
+                .firstMatch(calendarDataRaw);
+        final footerMatch =
+            RegExp(r'END:VCALENDAR', dotAll: true).firstMatch(calendarDataRaw);
+        final timezoneMatch =
+            RegExp(r'BEGIN:VTIMEZONE.*?END:VTIMEZONE', dotAll: true)
+                .firstMatch(calendarDataRaw);
+
+        final header =
+            headerMatch?.group(0)?.trim() ?? 'BEGIN:VCALENDAR\nVERSION:2.0';
+        final footer = footerMatch?.group(0)?.trim() ?? 'END:VCALENDAR';
+        final timezone = timezoneMatch?.group(0)?.trim() ?? '';
+
+        final vevents = RegExp(r'BEGIN:VEVENT.*?END:VEVENT', dotAll: true)
+            .allMatches(calendarDataRaw)
+            .map((e) => e.group(0)!.trim())
+            .toList();
+
+        for (var vevent in vevents) {
+          final uidMatch = RegExp(r'UID:(.+)').firstMatch(vevent);
+          final uid = uidMatch?.group(1)?.trim() ??
+              DateTime.now().millisecondsSinceEpoch.toString();
+          final eventHref =
+              href.endsWith('/') ? '$href$uid.ics' : '$href/$uid.ics';
+
+          final newCalendarData = [
+            header,
+            vevent,
+            if (timezone.isNotEmpty) timezone,
+            footer
+          ].join('\n');
+
+          buffer.writeln('''<D:response>
+  <href xmlns="DAV:">$eventHref</href>
+  <D:propstat>
+    <D:prop>
+      <D:getetag>$getetag</D:getetag>
+      <C:calendar-data xmlns:C="urn:ietf:params:xml:ns:caldav">${newCalendarData.trim()}</C:calendar-data>
+    </D:prop>
+    <status xmlns="DAV:">HTTP/1.1 200 OK</status>
+  </D:propstat>
+</D:response>''');
+        }
+      }
+
+      buffer.writeln('</D:multistatus>');
+      document = XmlDocument.parse(buffer.toString());
     } catch (e) {
+      print('❌ XML parsing error: $e');
+      print('📦 Raw body:\n$bodyRaw');
       document = null;
     }
 
