@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:caldav_client/src/cal_response.dart';
@@ -149,25 +150,31 @@ class CalDavBase {
   /// Create calendar
   Future<CalResponse> createCal(String path, dynamic calendar,
       {Map<String, dynamic>? headers}) async {
-    var uri = _fullUri(path);
+    final uri = Uri.parse(_fullUri(path));
+    final request = await client.putUrl(uri);
 
-    var request;
-    request = await client.putUrl(Uri.parse(uri));
+    // Correct content type
+    request.headers.contentType = ContentType("text", "calendar", charset: "utf-8");
 
-    request.headers.contentType =
-        ContentType('text', 'calendar', charset: 'utf-8');
+    // Merge headers
+    final temp = <String, dynamic>{...?headers, ...?this.headers};
 
-    var temp = <String, dynamic>{...?headers, ...?this.headers};
+    // Important for CalDAV PUT (create new resource)
+    request.headers.set("If-None-Match", "*");
 
+    // Apply all headers
     temp.forEach((key, value) {
-      request.headers.add(key, value);
+      request.headers.set(key, value.toString());
     });
 
-    request.write(calendar);
+    // Ensure proper length is set
+    final body = utf8.encode(calendar);
+    request.contentLength = body.length;
+    request.add(body);
 
-    var response = await request.close();
+    final response = await request.close();
 
-    return CalResponse.fromHttpResponse(response, uri);
+    return CalResponse.fromHttpResponse(response, uri.toString());
   }
 
   /// Delete calendar
