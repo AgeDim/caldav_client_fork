@@ -153,21 +153,21 @@ class CalDavBase {
     final uri = Uri.parse(_fullUri(path));
     final request = await client.putUrl(uri);
 
-    // Correct content type
-    request.headers.contentType = ContentType("text", "calendar", charset: "utf-8");
+    request.headers.contentType =
+        ContentType("text", "calendar", charset: "utf-8");
 
-    // Merge headers
     final temp = <String, dynamic>{...?headers, ...?this.headers};
 
-    // Important for CalDAV PUT (create new resource)
     request.headers.set("If-None-Match", "*");
+    request.headers.set("User-Agent", "PostmanRuntime/7.39.0");
+    request.headers.set("Accept", "*/*");
+    request.headers.set("Connection", "keep-alive");
+    request.headers.set("Accept-Encoding", "gzip, deflate, br");
 
-    // Apply all headers
     temp.forEach((key, value) {
       request.headers.set(key, value.toString());
     });
 
-    // Ensure proper length is set
     final body = utf8.encode(calendar);
     request.contentLength = body.length;
     request.add(body);
