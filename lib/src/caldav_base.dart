@@ -171,7 +171,7 @@ class CalDavBase {
     final body = utf8.encode(calendar);
     request.contentLength = body.length;
     request.add(body);
-
+    print(request.headers);
     final response = await request.close();
 
     return CalResponse.fromHttpResponse(response, uri.toString());
