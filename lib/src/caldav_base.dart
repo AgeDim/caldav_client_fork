@@ -120,12 +120,7 @@ class CalDavBase {
   Future<CalResponse> updateCal(String path, String etag, dynamic calendar,
       {Map<String, dynamic>? headers}) async {
     var uri = _fullUri(path);
-    var request;
-    if (uri.contains("calendar.mail.ru")) {
-      request = await client.postUrl(Uri.parse(uri));
-    } else {
-      request = await client.putUrl(Uri.parse(uri));
-    }
+    var request = await client.putUrl(Uri.parse(uri));
 
     request.headers.contentType =
         ContentType('text', 'calendar', charset: 'utf-8');
