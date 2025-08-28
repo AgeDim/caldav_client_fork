@@ -196,4 +196,21 @@ class CalDavBase {
   String _fullUri(String path) {
     return join(baseUrl, path);
   }
+
+  /// Get etag
+  Future<CalResponse> getEtag(String path,
+      {Map<String, dynamic>? headers}) async {
+    var uri = _fullUri(path);
+    var request = await client.getUrl(Uri.parse(uri));
+
+    var temp = <String, dynamic>{...?headers, ...?this.headers};
+
+    temp.forEach((key, value) {
+      request.headers.add(key, value);
+    });
+
+    var response = await request.close();
+
+    return CalResponse.fromHttpResponse(response, uri);
+  }
 }
